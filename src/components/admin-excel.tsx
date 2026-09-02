@@ -28,14 +28,18 @@ export function AdminExcel({
   const persist = async (next: Product[]) => {
     saveProducts(next);
     const failures: string[] = [];
+    let lastError = "";
     for (const product of next) {
       try {
         await upsertAppwriteProduct(product.id, productToAppwriteData(product));
-      } catch {
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : "Appwrite save failed";
         failures.push(product.name);
       }
     }
-    if (failures.length) {
+    if (failures.length === next.length && lastError) {
+      toast.error(lastError);
+    } else if (failures.length) {
       toast.error(`Saved locally. Appwrite missed: ${failures.slice(0, 3).join(", ")}`);
     } else {
       toast.success("Catalogue saved to Appwrite.");
@@ -57,7 +61,9 @@ export function AdminExcel({
       await persist(mergeImportedProducts(products, incoming));
       toast.success(`Imported ${incoming.length} product${incoming.length === 1 ? "" : "s"}.`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not read that Excel file.");
+      toast.error(
+        error instanceof Error ? error.message : "Could not read that Excel file.",
+      );
     }
   };
 

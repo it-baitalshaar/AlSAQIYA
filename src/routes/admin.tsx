@@ -156,14 +156,9 @@ function Admin({ user }: { user: string }) {
     try {
       const url = await uploadProductImage(file);
       set("image", url);
-      toast.success("Photo uploaded to Appwrite.");
-    } catch {
-      const reader = new FileReader();
-      reader.onload = () => {
-        set("image", String(reader.result));
-        toast.message("Saved the photo in this browser. Appwrite upload was unavailable.");
-      };
-      reader.readAsDataURL(file);
+      toast.success("Photo uploaded.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Photo upload failed.");
     } finally {
       setUploading(false);
     }
