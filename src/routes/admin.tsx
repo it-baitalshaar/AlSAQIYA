@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Pencil, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useState, type FormEvent } from "react";
+import { LogOut, Pencil, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { getAdminUser, loginAdmin, logoutAdmin } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,10 +52,85 @@ export const Route = createFileRoute("/admin")({
       { property: "og:description", content: "Internal catalogue manager for Al Saqiya Trading." },
     ],
   }),
-  component: Admin,
+  beforeLoad: async () => {
+    const adminUser = await getAdminUser();
+    return { adminUser };
+  },
+  component: AdminGate,
 });
 
-function Admin() {
+function AdminGate() {
+  const { adminUser } = Route.useRouteContext();
+  if (!adminUser) return <AdminLogin />;
+  return <Admin user={adminUser} />;
+}
+
+function AdminLogin() {
+  const router = useRouter();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const onSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const result = await loginAdmin({ data: { username, password } });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      await router.invalidate();
+    } catch {
+      setError("Could not sign in. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto flex max-w-md flex-col px-6 py-20">
+      <p className="text-eyebrow text-muted-foreground">Staff only</p>
+      <h1 className="rule-gold mt-3 text-4xl">Admin login</h1>
+      <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+        Sign in to manage the Al Saqiya catalogue.
+      </p>
+      <form onSubmit={(event) => void onSubmit(event)} className="mt-10 grid gap-5">
+        <div className="grid gap-2">
+          <Label htmlFor="admin-email">Email</Label>
+          <Input
+            id="admin-email"
+            type="email"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="admin-password">Password</Label>
+          <Input
+            id="admin-password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <Button type="submit" variant="brand" disabled={busy}>
+          {busy ? "Signing in…" : "Sign in"}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+function Admin({ user }: { user: string }) {
+  const router = useRouter();
   const { products, refresh, source } = useProducts();
   const [draft, setDraft] = useState<Product>(emptyProduct());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -162,7 +238,7 @@ function Admin() {
     <div className="mx-auto max-w-7xl px-6 py-12">
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="text-eyebrow text-muted-foreground">Internal tool</p>
+          <p className="text-eyebrow text-muted-foreground">Internal tool · {user}</p>
           <h1 className="rule-gold mt-3 text-4xl">Catalogue admin</h1>
           <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             Add products with photos and prices here, or import them from Excel. Catalogue data is
@@ -171,6 +247,16 @@ function Admin() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <Button
+            variant="quiet"
+            onClick={async () => {
+              await logoutAdmin();
+              await router.invalidate();
+            }}
+          >
+            <LogOut className="size-4" />
+            Sign out
+          </Button>
           <Button
             variant="quiet"
             onClick={async () => {
