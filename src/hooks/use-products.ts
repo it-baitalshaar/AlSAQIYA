@@ -10,18 +10,14 @@ export function useProducts() {
   const sync = useCallback(async () => {
     try {
       const rows = await listAppwriteProducts();
-      if (rows.length) {
-        setProducts(rows.map(productFromAppwrite));
-        setSource("appwrite");
-        setReady(true);
-        return;
-      }
+      setProducts(rows.map(productFromAppwrite));
+      setSource("appwrite");
     } catch {
-      // Fall back to the browser catalogue if Appwrite is offline.
+      setProducts(listProducts());
+      setSource("local");
+    } finally {
+      setReady(true);
     }
-    setProducts(listProducts());
-    setSource("local");
-    setReady(true);
   }, []);
 
   useEffect(() => {

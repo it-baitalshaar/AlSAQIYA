@@ -26,7 +26,6 @@ export function AdminExcel({
   onDone: () => void;
 }) {
   const persist = async (next: Product[]) => {
-    saveProducts(next);
     const failures: string[] = [];
     let lastError = "";
     for (const product of next) {
@@ -37,6 +36,7 @@ export function AdminExcel({
         failures.push(product.name);
       }
     }
+    saveProducts(next);
     if (failures.length === next.length && lastError) {
       toast.error(lastError);
     } else if (failures.length) {

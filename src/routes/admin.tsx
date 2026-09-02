@@ -174,11 +174,12 @@ function Admin({ user }: { user: string }) {
     const list = editingId
       ? products.map((p) => (p.id === editingId ? next : p))
       : [next, ...products.filter((p) => p.id !== id)];
-    saveProducts(list);
     try {
       await upsertAppwriteProduct(id, productToAppwriteData(next));
+      saveProducts(list);
       toast.success(editingId ? "Product updated in Appwrite." : "Product added to Appwrite.");
     } catch (error) {
+      saveProducts(list);
       toast.error(
         error instanceof Error
           ? error.message
@@ -190,41 +191,47 @@ function Admin({ user }: { user: string }) {
   };
 
   const remove = async (id: string) => {
-    saveProducts(products.filter((p) => p.id !== id));
+    const list = products.filter((p) => p.id !== id);
     try {
       await removeCatalogueProduct(id);
-    } catch {
-      // Local catalogue still updates.
+      saveProducts(list);
+      toast.success("Product removed from Appwrite.");
+    } catch (error) {
+      saveProducts(list);
+      toast.error(
+        error instanceof Error ? error.message : "Removed in this browser. Appwrite delete failed.",
+      );
     }
     if (editingId === id) startNew();
-    toast.success("Product removed.");
     await refresh();
   };
 
   const toggleStock = async (id: string) => {
     const next = products.map((p) => (p.id === id ? { ...p, inStock: !p.inStock } : p));
-    saveProducts(next);
     const updated = next.find((p) => p.id === id);
-    if (updated) {
-      try {
-        await upsertAppwriteProduct(id, productToAppwriteData(updated));
-      } catch {
-        // Local catalogue still updates.
-      }
+    if (!updated) return;
+    try {
+      await upsertAppwriteProduct(id, productToAppwriteData(updated));
+      saveProducts(next);
+    } catch (error) {
+      saveProducts(next);
+      toast.error(error instanceof Error ? error.message : "Stock updated only in this browser.");
     }
     await refresh();
   };
 
   const toggleFeatured = async (id: string) => {
     const next = products.map((p) => (p.id === id ? { ...p, featured: !p.featured } : p));
-    saveProducts(next);
     const updated = next.find((p) => p.id === id);
-    if (updated) {
-      try {
-        await upsertAppwriteProduct(id, productToAppwriteData(updated));
-      } catch {
-        // Local catalogue still updates.
-      }
+    if (!updated) return;
+    try {
+      await upsertAppwriteProduct(id, productToAppwriteData(updated));
+      saveProducts(next);
+    } catch (error) {
+      saveProducts(next);
+      toast.error(
+        error instanceof Error ? error.message : "Featured flag updated only in this browser.",
+      );
     }
     await refresh();
   };
@@ -237,7 +244,10 @@ function Admin({ user }: { user: string }) {
           <h1 className="rule-gold mt-3 text-4xl">Catalogue admin</h1>
           <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             Add products with photos and prices here, or import them from Excel. Catalogue data is
-            stored in Appwrite ({source === "appwrite" ? "connected" : "using this browser until the first sync"}
+            stored in Appwrite (
+            {source === "appwrite"
+              ? "connected — this list is live from Appwrite"
+              : "not reachable, showing this browser’s copy only"}
             ).
           </p>
         </div>

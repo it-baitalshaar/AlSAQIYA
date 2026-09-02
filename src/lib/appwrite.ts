@@ -2,6 +2,11 @@
  * Appwrite catalogue API.
  * Browser calls go through TanStack server functions so Vercel / alsaqiya.ae
  * are not blocked by Appwrite CORS (the "Failed to fetch" error).
+ *
+ * Al Saqia Trading uses a TablesDB database. The public REST surface that
+ * actually accepts guest reads/writes is the Databases documents API
+ * (`/databases/.../documents`). `/tablesdb/...` returns HTML 404s, so that
+ * path must not be treated as a successful save.
  */
 import { createServerFn } from "@tanstack/react-start";
 
@@ -17,6 +22,8 @@ export const appwriteConfig = {
 
 const { endpoint, projectId, databaseId, productsCollectionId, storageBucketId } =
   appwriteConfig;
+
+const documentsPath = `/databases/${databaseId}/collections/${productsCollectionId}/documents`;
 
 export type AppwriteProductRow = {
   $id: string;
@@ -43,6 +50,7 @@ export function fileViewUrl(fileId: string) {
 async function appwriteHeaders(extra?: HeadersInit) {
   const headers = new Headers({
     "X-Appwrite-Project": projectId,
+    Accept: "application/json",
     ...extra,
   });
   const apiKey = process.env["APPWRITE_API_KEY"];
@@ -50,107 +58,106 @@ async function appwriteHeaders(extra?: HeadersInit) {
   return headers;
 }
 
-async function parseBody(res: Response) {
+function isJsonResponse(res: Response) {
+  return (res.headers.get("content-type") ?? "").includes("application/json");
+}
+
+function errorMessage(body: Record<string, unknown>, status: number, fallback: string) {
+  const message = body.message;
+  if (typeof message === "string" && message.trim() && !message.trim().startsWith("<")) {
+    return message;
+  }
+  const type = body.type;
+  if (typeof type === "string" && type) return `${fallback} (${type})`;
+  return `${fallback} (${status})`;
+}
+
+async function parseBody(res: Response): Promise<Record<string, unknown>> {
   const text = await res.text();
   try {
-    return text ? JSON.parse(text) : {};
+    return text ? (JSON.parse(text) as Record<string, unknown>) : {};
   } catch {
-    return { message: text };
+    return {};
   }
 }
 
-async function appwriteFetch(path: string, init: RequestInit = {}) {
-  const extra = init.headers;
-  const headers = await appwriteHeaders(extra);
-  return fetch(`${endpoint}${path}`, { ...init, headers });
+async function appwriteJson(path: string, init: RequestInit = {}) {
+  const headers = await appwriteHeaders(init.headers);
+  const res = await fetch(`${endpoint}${path}`, { cache: "no-store", ...init, headers });
+  const body = await parseBody(res);
+  const json = isJsonResponse(res);
+  return { res, body, json, ok: res.ok && json };
+}
+
+function flattenRow(row: Record<string, unknown>): AppwriteProductRow {
+  const nested =
+    row.data && typeof row.data === "object" && !Array.isArray(row.data)
+      ? (row.data as Record<string, unknown>)
+      : {};
+  const { data: _data, ...rest } = row;
+  return { ...rest, ...nested, $id: String(row.$id ?? "") } as AppwriteProductRow;
 }
 
 function rowsFrom(body: Record<string, unknown>) {
-  const list = (body.rows ?? body.documents ?? []) as AppwriteProductRow[];
-  return Array.isArray(list) ? list : [];
+  const list = (body.rows ?? body.documents ?? []) as Record<string, unknown>[];
+  return Array.isArray(list) ? list.map(flattenRow) : [];
 }
 
-const listProductsFn = createServerFn({ method: "GET" }).handler(async () => {
-  const tableUrl = `/tablesdb/databases/${databaseId}/tables/${productsCollectionId}/rows?queries[]=${encodeURIComponent("limit(500)")}`;
-  const tableRes = await appwriteFetch(tableUrl);
-  const tableBody = await parseBody(tableRes);
-  if (tableRes.ok) return rowsFrom(tableBody);
-
-  const docsUrl = `/databases/${databaseId}/collections/${productsCollectionId}/documents?queries[]=${encodeURIComponent("limit(500)")}`;
-  const docsRes = await appwriteFetch(docsUrl);
-  const docsBody = await parseBody(docsRes);
-  if (!docsRes.ok) {
-    throw new Error(docsBody.message ?? tableBody.message ?? `Appwrite list failed (${docsRes.status})`);
+function savedRow(body: Record<string, unknown>) {
+  const row = flattenRow(body);
+  if (!row.$id) {
+    throw new Error("Appwrite did not return a saved product id.");
   }
-  return rowsFrom(docsBody);
+  return row;
+}
+
+const listProductsFn = createServerFn({ method: "POST" }).handler(async () => {
+  const query = encodeURIComponent(JSON.stringify({ method: "limit", values: [500] }));
+  const docs = await appwriteJson(`${documentsPath}?queries[]=${query}`);
+  if (!docs.ok) {
+    throw new Error(errorMessage(docs.body, docs.res.status, "Appwrite list failed"));
+  }
+
+  const rows = rowsFrom(docs.body);
+  // Appwrite 2 list omits a column named `collection` (reserved vs $collectionId).
+  // Individual document reads still return it, so fill any blanks.
+  return Promise.all(
+    rows.map(async (row) => {
+      if (row.collection) return row;
+      const one = await appwriteJson(`${documentsPath}/${row.$id}`);
+      return one.ok ? flattenRow(one.body) : row;
+    }),
+  );
 });
 
 const upsertProductFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; data: Record<string, unknown> }) => input)
   .handler(async ({ data: { id, data } }) => {
-    const createTable = await appwriteFetch(
-      `/tablesdb/databases/${databaseId}/tables/${productsCollectionId}/rows`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rowId: id, data }),
-      },
-    );
-    if (createTable.ok) return parseBody(createTable);
+    const create = await appwriteJson(documentsPath, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId: id, data }),
+    });
+    if (create.ok) return savedRow(create.body);
 
-    const patchTable = await appwriteFetch(
-      `/tablesdb/databases/${databaseId}/tables/${productsCollectionId}/rows/${id}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data }),
-      },
-    );
-    if (patchTable.ok) return parseBody(patchTable);
+    const patch = await appwriteJson(`${documentsPath}/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data }),
+    });
+    if (patch.ok) return savedRow(patch.body);
 
-    const createDoc = await appwriteFetch(
-      `/databases/${databaseId}/collections/${productsCollectionId}/documents`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: id, data }),
-      },
+    throw new Error(
+      errorMessage(patch.body, patch.res.status, errorMessage(create.body, create.res.status, "Appwrite save failed")),
     );
-    if (createDoc.ok) return parseBody(createDoc);
-
-    const patchDoc = await appwriteFetch(
-      `/databases/${databaseId}/collections/${productsCollectionId}/documents/${id}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data }),
-      },
-    );
-    const body = await parseBody(patchDoc);
-    if (!patchDoc.ok) {
-      throw new Error(body.message ?? `Appwrite save failed (${patchDoc.status})`);
-    }
-    return body;
   });
 
 const deleteProductFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .handler(async ({ data: { id } }) => {
-    const tableRes = await appwriteFetch(
-      `/tablesdb/databases/${databaseId}/tables/${productsCollectionId}/rows/${id}`,
-      { method: "DELETE" },
-    );
-    if (tableRes.ok || tableRes.status === 404) return { ok: true };
-
-    const docRes = await appwriteFetch(
-      `/databases/${databaseId}/collections/${productsCollectionId}/documents/${id}`,
-      { method: "DELETE" },
-    );
-    if (!docRes.ok && docRes.status !== 404) {
-      const body = await parseBody(docRes);
-      throw new Error(body.message ?? `Appwrite delete failed (${docRes.status})`);
-    }
-    return { ok: true };
+    const doc = await appwriteJson(`${documentsPath}/${id}`, { method: "DELETE" });
+    if (doc.ok || doc.res.status === 204 || doc.res.status === 404) return { ok: true };
+    throw new Error(errorMessage(doc.body, doc.res.status, "Appwrite delete failed"));
   });
 
 const uploadImageFn = createServerFn({ method: "POST" })
@@ -162,19 +169,19 @@ const uploadImageFn = createServerFn({ method: "POST" })
   })
   .handler(async ({ data: { file } }) => {
     const fileId = crypto.randomUUID().replace(/-/g, "").slice(0, 32);
-    const filename = "name" in file && typeof file.name === "string" && file.name ? file.name : "product.jpg";
+    const filename =
+      "name" in file && typeof file.name === "string" && file.name ? file.name : "product.jpg";
     const form = new FormData();
     form.append("fileId", fileId);
     form.append("file", file, filename);
     form.append("permissions[]", 'read("any")');
 
-    const res = await appwriteFetch(`/storage/buckets/${storageBucketId}/files`, {
+    const res = await appwriteJson(`/storage/buckets/${storageBucketId}/files`, {
       method: "POST",
       body: form,
     });
-    const body = await parseBody(res);
-    if (!res.ok) throw new Error(body.message ?? `Image upload failed (${res.status})`);
-    return fileViewUrl(body.$id ?? fileId);
+    if (!res.ok) throw new Error(errorMessage(res.body, res.res.status, "Image upload failed"));
+    return fileViewUrl(String(res.body.$id ?? fileId));
   });
 
 export async function listAppwriteProducts(): Promise<AppwriteProductRow[]> {
