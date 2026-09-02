@@ -10,7 +10,7 @@ export const Route = createFileRoute("/about")({
       {
         name: "description",
         content:
-          "Al Saqiya Trading L.L.C. has imported and supplied tiles, porcelain and sanitary ware from Musaffah Industrial Area Sector M38, Abu Dhabi since 1991. Licence CN-1021313.",
+          "Al Saqiya Trading L.L.C. has imported and supplied tiles, porcelain and sanitary ware from Musaffah Industrial, Abu Dhabi since 1991. Licence CN-1021313.",
       },
       { property: "og:title", content: "About Al Saqiya Trading" },
       {
@@ -49,11 +49,10 @@ function About() {
               Three decades of supplying the surfaces of Abu Dhabi.
             </h1>
             <p className="mt-6 leading-relaxed opacity-85">
-              {company.legalName} was established in 1991 and operates from Musaffah Industrial
-              Area Sector M38, Abu Dhabi, near Mohammed Asheer Ali Suleman Al Mazroui Mosque.
-              We import and retail ceramic and porcelain tiles, large-format slabs, outdoor paving
-              and sanitary ware — supplying contractors, consultants, interior fit-out firms and
-              private villa owners across the Emirates.
+              {company.legalName} was established in 1991 and operates from {company.addressEn},{" "}
+              {company.landmark}. We import and retail ceramic and porcelain tiles, large-format
+              slabs, outdoor paving and sanitary ware — supplying contractors, consultants, interior
+              fit-out firms and private villa owners across the Emirates.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">

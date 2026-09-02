@@ -10,13 +10,13 @@ export const Route = createFileRoute("/contact")({
       {
         name: "description",
         content:
-          "Visit Al Saqiya Trading in Musaffah Industrial Area Sector M38, Abu Dhabi. Call +971 50 444 3247 or email accountant@alsaqiauae.ae.",
+          "Visit Al Saqiya Trading in Musaffah Industrial, Abu Dhabi. Call +971 50 444 3247 or email accountant@alsaqiauae.ae.",
       },
       { property: "og:title", content: "Contact Al Saqiya Trading" },
       {
         property: "og:description",
         content:
-          "Musaffah Industrial Area Sector M38, Abu Dhabi. Near Mohammed Asheer Ali Suleman Al Mazroui Mosque.",
+          "Musaffah - Musaffah Industrial - Abu Dhabi. Find us on Google Maps.",
       },
     ],
   }),
@@ -47,6 +47,7 @@ const cards = [
     icon: MapPin,
     label: "Address",
     value: `${company.addressEn}. ${company.landmark}.`,
+    href: company.mapsUrl,
   },
   { icon: Clock, label: "Working hours", value: company.hours },
 ];
@@ -88,11 +89,12 @@ function Contact() {
         <div className="flex flex-col gap-6">
           <div className="overflow-hidden border border-border">
             <iframe
-              title="Al Saqiya Trading location — Musaffah Industrial Area Sector M38, Abu Dhabi"
-              src="https://www.google.com/maps?q=Mohammed%20Asheer%20Ali%20Suleman%20Al%20Mazroui%20Mosque%20Musaffah%20M38%20Abu%20Dhabi&output=embed"
+              title="Al Saqiya Trading location — Musaffah Industrial, Abu Dhabi"
+              src={company.mapsEmbed}
               className="h-80 w-full"
               loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
             />
           </div>
           <div className="surface-navy p-8">

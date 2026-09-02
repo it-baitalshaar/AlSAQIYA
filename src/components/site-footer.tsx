@@ -74,10 +74,15 @@ export function SiteFooter() {
             <ul className="mt-5 space-y-3.5 text-sm text-white/80">
               <li className="flex gap-3">
                 <MapPin className="mt-0.5 size-4 shrink-0 text-gold" />
-                <span>
+                <a
+                  href={company.mapsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-gold"
+                >
                   {company.addressEn}
                   <span className="mt-1 block text-white/60">{company.landmark}</span>
-                </span>
+                </a>
               </li>
               <li className="flex gap-3">
                 <Phone className="mt-0.5 size-4 shrink-0 text-gold" />
