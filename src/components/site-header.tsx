@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Menu, MessageCircle, Phone, X } from "lucide-react";
-import { company, companyLogo, whatsappLink } from "@/lib/company";
+import { company, companyLogo, telHref, whatsappLink } from "@/lib/company";
 import { Button } from "@/components/ui/button";
 
 const nav = [
@@ -24,20 +24,18 @@ export function SiteHeader() {
           </p>
           <div className="flex items-center gap-6">
             <a
-              href={`tel:${company.phone}`}
+              href={telHref(company.phone)}
               className="inline-flex items-center gap-2 opacity-90 transition-opacity hover:opacity-100"
             >
               <Phone className="size-3.5" />
               {company.phone}
             </a>
             <a
-              href={whatsappLink("Hello Al Saqiya Trading, I would like an enquiry.")}
-              target="_blank"
-              rel="noreferrer"
+              href={telHref(company.landline)}
               className="inline-flex items-center gap-2 opacity-90 transition-opacity hover:opacity-100"
             >
-              <MessageCircle className="size-3.5" />
-              {company.whatsapp}
+              <Phone className="size-3.5" />
+              {company.landline}
             </a>
           </div>
         </div>

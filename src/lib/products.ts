@@ -1,4 +1,5 @@
 import { catalogImages, localizeImageUrl } from "@/lib/catalog-images";
+import type { AppwriteProductRow } from "@/lib/appwrite";
 
 export type Product = {
   id: string;
@@ -236,4 +237,58 @@ export function emptyProduct(): Product {
     description: "",
     image: "",
   };
+}
+
+export function productToAppwriteData(product: Product) {
+  return {
+    name: product.name,
+    collection: product.collection,
+    category: product.category,
+    size: product.size,
+    finish: product.finish,
+    thickness: product.thickness,
+    origin: product.origin,
+    application: product.application,
+    price: product.price,
+    inStock: product.inStock,
+    featured: product.featured,
+    description: product.description,
+    image: product.image.startsWith("data:") ? "" : product.image,
+    gallery: (product.gallery ?? []).filter((url) => !url.startsWith("data:")),
+  };
+}
+
+export function productFromAppwrite(row: AppwriteProductRow): Product {
+  return {
+    id: row.$id,
+    name: row.name,
+    collection: row.collection ?? "",
+    category: (categories as readonly string[]).includes(row.category)
+      ? (row.category as Category)
+      : "Floor Tiles",
+    size: row.size ?? "",
+    finish: row.finish ?? "",
+    thickness: row.thickness ?? "",
+    origin: row.origin ?? "",
+    application: row.application ?? "",
+    price: row.price ?? "",
+    inStock: row.inStock ?? true,
+    featured: row.featured ?? false,
+    description: row.description ?? "",
+    image: localizeImageUrl(row.image ?? ""),
+    gallery: row.gallery?.map(localizeImageUrl),
+  };
+}
+
+export function mergeImportedProducts(current: Product[], incoming: Product[]) {
+  const byId = new Map(current.map((p) => [p.id, p]));
+  for (const item of incoming) {
+    const existing = byId.get(item.id);
+    byId.set(item.id, {
+      ...item,
+      image: item.image || existing?.image || "",
+      gallery: item.gallery?.length ? item.gallery : existing?.gallery,
+    });
+  }
+  return [...byId.values()];
 }

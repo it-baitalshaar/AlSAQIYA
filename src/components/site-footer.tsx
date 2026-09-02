@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
-import { company, companyLogo, whatsappLink } from "@/lib/company";
+import { Mail, MapPin, Phone, Globe } from "lucide-react";
+import { company, companyLogo, telHref } from "@/lib/company";
 
 const catalogue = ["Wall Tiles", "Floor Tiles", "Outdoor Porcelain", "Wood Look", "Sanitary Ware"];
 
@@ -17,11 +17,13 @@ export function SiteFooter() {
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-5">
             <Link to="/" className="inline-flex items-center gap-4">
-              <img
-                src={companyLogo}
-                alt="Al Saqiya Trading logo"
-                className="h-[4.25rem] w-auto object-contain invert hue-rotate-180"
-              />
+              <span className="flex size-20 shrink-0 items-center justify-center rounded-full bg-white p-1.5">
+                <img
+                  src={companyLogo}
+                  alt="Al Saqiya Trading logo"
+                  className="h-full w-full object-contain"
+                />
+              </span>
               <span>
                 <span className="block font-display text-xl leading-tight tracking-wide">
                   {company.nameEn}
@@ -72,29 +74,38 @@ export function SiteFooter() {
             <ul className="mt-5 space-y-3.5 text-sm text-white/80">
               <li className="flex gap-3">
                 <MapPin className="mt-0.5 size-4 shrink-0 text-gold" />
-                <span>{company.addressEn}</span>
+                <span>
+                  {company.addressEn}
+                  <span className="mt-1 block text-white/60">{company.landmark}</span>
+                </span>
               </li>
               <li className="flex gap-3">
                 <Phone className="mt-0.5 size-4 shrink-0 text-gold" />
-                <a href={`tel:${company.phone}`} className="hover:text-gold">
+                <a href={telHref(company.phone)} className="hover:text-gold">
                   {company.phone}
                 </a>
               </li>
               <li className="flex gap-3">
-                <MessageCircle className="mt-0.5 size-4 shrink-0 text-gold" />
-                <a
-                  href={whatsappLink("Hello Al Saqiya Trading")}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-gold"
-                >
-                  {company.whatsapp}
+                <Phone className="mt-0.5 size-4 shrink-0 text-gold" />
+                <a href={telHref(company.landline)} className="hover:text-gold">
+                  {company.landline}
                 </a>
               </li>
               <li className="flex gap-3">
                 <Mail className="mt-0.5 size-4 shrink-0 text-gold" />
                 <a href={`mailto:${company.email}`} className="hover:text-gold">
                   {company.email}
+                </a>
+              </li>
+              <li className="flex gap-3">
+                <Globe className="mt-0.5 size-4 shrink-0 text-gold" />
+                <a
+                  href={company.website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-gold"
+                >
+                  {company.websiteLabel}
                 </a>
               </li>
             </ul>

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Clock, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { Clock, Globe, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { company, whatsappLink } from "@/lib/company";
+import { company, telHref, whatsappLink } from "@/lib/company";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -10,12 +10,13 @@ export const Route = createFileRoute("/contact")({
       {
         name: "description",
         content:
-          "Visit or call Al Saqiya Trading in Mussafah Industrial, Abu Dhabi. WhatsApp +971 50 808 5541 for tile availability, pricing and delivery.",
+          "Visit Al Saqiya Trading in Musaffah Industrial Area Sector M38, Abu Dhabi. Call +971 50 444 3247 or email accountant@alsaqiauae.ae.",
       },
       { property: "og:title", content: "Contact Al Saqiya Trading" },
       {
         property: "og:description",
-        content: "Mussafah Industrial, Abu Dhabi. WhatsApp, call or email our sales team.",
+        content:
+          "Musaffah Industrial Area Sector M38, Abu Dhabi. Near Mohammed Asheer Ali Suleman Al Mazroui Mosque.",
       },
     ],
   }),
@@ -24,14 +25,29 @@ export const Route = createFileRoute("/contact")({
 
 const cards = [
   {
-    icon: MessageCircle,
-    label: "WhatsApp (sales & orders)",
-    value: company.whatsapp,
-    href: whatsappLink("Hello Al Saqiya Trading, I have an enquiry."),
+    icon: Phone,
+    label: "Mobile",
+    value: company.phone,
+    href: telHref(company.phone),
   },
-  { icon: Phone, label: "Telephone", value: company.phone, href: `tel:${company.phone}` },
+  {
+    icon: Phone,
+    label: "Landline",
+    value: company.landline,
+    href: telHref(company.landline),
+  },
   { icon: Mail, label: "Email", value: company.email, href: `mailto:${company.email}` },
-  { icon: MapPin, label: "Address", value: company.addressEn },
+  {
+    icon: Globe,
+    label: "Website",
+    value: company.websiteLabel,
+    href: company.website,
+  },
+  {
+    icon: MapPin,
+    label: "Address",
+    value: `${company.addressEn}. ${company.landmark}.`,
+  },
   { icon: Clock, label: "Working hours", value: company.hours },
 ];
 
@@ -72,8 +88,8 @@ function Contact() {
         <div className="flex flex-col gap-6">
           <div className="overflow-hidden border border-border">
             <iframe
-              title="Al Saqiya Trading location — Mussafah Industrial, Abu Dhabi"
-              src="https://www.google.com/maps?q=Mussafah%20Industrial%20M38%20Abu%20Dhabi&output=embed"
+              title="Al Saqiya Trading location — Musaffah Industrial Area Sector M38, Abu Dhabi"
+              src="https://www.google.com/maps?q=Mohammed%20Asheer%20Ali%20Suleman%20Al%20Mazroui%20Mosque%20Musaffah%20M38%20Abu%20Dhabi&output=embed"
               className="h-80 w-full"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
@@ -82,8 +98,9 @@ function Contact() {
           <div className="surface-navy p-8">
             <h2 className="text-2xl">Fastest way to reach us</h2>
             <p className="mt-3 text-sm leading-relaxed opacity-85">
-              Send your tile schedule, drawings or a photo of the reference finish on WhatsApp. Our
-              sales team confirms availability, pricing and delivery timing the same working day.
+              Call or WhatsApp {company.phone}, or email {company.email}. Send your tile schedule,
+              drawings or a photo of the reference finish and we confirm availability the same
+              working day.
             </p>
             <Button asChild variant="gold" className="mt-6">
               <a

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pencil, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,17 +23,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AdminExcel, pushCatalogueToAppwrite, removeCatalogueProduct } from "@/components/admin-excel";
 import { useProducts } from "@/hooks/use-products";
 import {
   categories,
   emptyProduct,
+  productToAppwriteData,
   resetProducts,
   saveProducts,
   slugify,
   type Category,
   type Product,
 } from "@/lib/products";
-import { appwriteConfig } from "@/lib/appwrite";
+import { appwriteConfig, upsertAppwriteProduct, uploadProductImage } from "@/lib/appwrite";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -53,9 +55,10 @@ export const Route = createFileRoute("/admin")({
 });
 
 function Admin() {
-  const { products } = useProducts();
+  const { products, refresh, source } = useProducts();
   const [draft, setDraft] = useState<Product>(emptyProduct());
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const set = <K extends keyof Product>(k: K, v: Product[K]) =>
     setDraft((d) => ({ ...d, [k]: v }));
@@ -71,14 +74,26 @@ function Admin() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const onFile = (file: File | undefined) => {
+  const onFile = async (file: File | undefined) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => set("image", String(reader.result));
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      const url = await uploadProductImage(file);
+      set("image", url);
+      toast.success("Photo uploaded to Appwrite.");
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        set("image", String(reader.result));
+        toast.message("Saved the photo in this browser. Appwrite upload was unavailable.");
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!draft.name.trim()) {
       toast.error("Product name is required.");
       return;
@@ -89,22 +104,58 @@ function Admin() {
       ? products.map((p) => (p.id === editingId ? next : p))
       : [next, ...products.filter((p) => p.id !== id)];
     saveProducts(list);
-    toast.success(editingId ? "Product updated." : "Product added to the catalogue.");
+    try {
+      await upsertAppwriteProduct(id, productToAppwriteData(next));
+      toast.success(editingId ? "Product updated in Appwrite." : "Product added to Appwrite.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Saved in this browser. Appwrite did not accept the product yet.",
+      );
+    }
+    await refresh();
     startNew();
   };
 
-  const remove = (id: string) => {
+  const remove = async (id: string) => {
     saveProducts(products.filter((p) => p.id !== id));
+    try {
+      await removeCatalogueProduct(id);
+    } catch {
+      // Local catalogue still updates.
+    }
     if (editingId === id) startNew();
     toast.success("Product removed.");
+    await refresh();
   };
 
-  const toggleStock = (id: string) => {
-    saveProducts(products.map((p) => (p.id === id ? { ...p, inStock: !p.inStock } : p)));
+  const toggleStock = async (id: string) => {
+    const next = products.map((p) => (p.id === id ? { ...p, inStock: !p.inStock } : p));
+    saveProducts(next);
+    const updated = next.find((p) => p.id === id);
+    if (updated) {
+      try {
+        await upsertAppwriteProduct(id, productToAppwriteData(updated));
+      } catch {
+        // Local catalogue still updates.
+      }
+    }
+    await refresh();
   };
 
-  const toggleFeatured = (id: string) => {
-    saveProducts(products.map((p) => (p.id === id ? { ...p, featured: !p.featured } : p)));
+  const toggleFeatured = async (id: string) => {
+    const next = products.map((p) => (p.id === id ? { ...p, featured: !p.featured } : p));
+    saveProducts(next);
+    const updated = next.find((p) => p.id === id);
+    if (updated) {
+      try {
+        await upsertAppwriteProduct(id, productToAppwriteData(updated));
+      } catch {
+        // Local catalogue still updates.
+      }
+    }
+    await refresh();
   };
 
   return (
@@ -114,29 +165,47 @@ function Admin() {
           <p className="text-eyebrow text-muted-foreground">Internal tool</p>
           <h1 className="rule-gold mt-3 text-4xl">Catalogue admin</h1>
           <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Products are stored in this browser for now. The data shape mirrors the{" "}
-            <code className="text-xs">{appwriteConfig.productsCollectionId}</code> collection, so
-            switching to the Appwrite backend later needs no UI changes.
+            Add products with photos and prices here, or import them from Excel. Catalogue data is
+            stored in Appwrite ({source === "appwrite" ? "connected" : "using this browser until the first sync"}
+            ).
           </p>
         </div>
-        <Button
-          variant="quiet"
-          onClick={() => {
-            resetProducts();
-            startNew();
-            toast.success("Catalogue reset to the original showroom list.");
-          }}
-        >
-          <RotateCcw className="size-4" />
-          Reset to defaults
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="quiet"
+            onClick={async () => {
+              try {
+                await pushCatalogueToAppwrite(products);
+                toast.success("This catalogue is now in Appwrite.");
+                await refresh();
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Could not sync to Appwrite.");
+              }
+            }}
+          >
+            Sync to Appwrite
+          </Button>
+          <Button
+            variant="quiet"
+            onClick={() => {
+              resetProducts();
+              startNew();
+              toast.success("Browser catalogue reset to the original showroom list.");
+              void refresh();
+            }}
+          >
+            <RotateCcw className="size-4" />
+            Reset local defaults
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="products" className="mt-10">
         <TabsList>
           <TabsTrigger value="products">Products ({products.length})</TabsTrigger>
+          <TabsTrigger value="excel">Excel</TabsTrigger>
           <TabsTrigger value="stock">Stock & featured</TabsTrigger>
-          <TabsTrigger value="backend">Backend</TabsTrigger>
+          <TabsTrigger value="backend">Appwrite</TabsTrigger>
         </TabsList>
 
         <TabsContent value="products" className="mt-8">
@@ -213,11 +282,12 @@ function Admin() {
                     <label className="inline-flex cursor-pointer items-center gap-2 border border-border px-4 py-2 text-xs uppercase tracking-widest hover:border-primary/40">
                       <Upload className="size-4" />
                       Upload photo
+                      {uploading ? "…" : ""}
                       <input
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => onFile(e.target.files?.[0])}
+                        onChange={(e) => void onFile(e.target.files?.[0])}
                       />
                     </label>
                     {draft.image ? (
@@ -315,6 +385,10 @@ function Admin() {
           </div>
         </TabsContent>
 
+        <TabsContent value="excel" className="mt-8">
+          <AdminExcel products={products} onDone={() => void refresh()} />
+        </TabsContent>
+
         <TabsContent value="stock" className="mt-8">
           <div className="border border-border bg-card shadow-soft">
             <Table>
@@ -344,10 +418,11 @@ function Admin() {
 
         <TabsContent value="backend" className="mt-8">
           <div className="max-w-2xl border border-border bg-card p-8 shadow-soft">
-            <h2 className="text-2xl">Appwrite configuration</h2>
+            <h2 className="text-2xl">Appwrite</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              These are placeholder values. Replace them with your real Appwrite project settings
-              when you are ready to move the catalogue off this browser.
+              Live project <span className="font-medium text-foreground">Al Saqia Trading</span> in
+              Frankfurt. Products table and the image bucket are ready. Guest write is enabled for
+              this internal admin — add Appwrite Auth before the site is public.
             </p>
             <dl className="mt-6 divide-y divide-border">
               {Object.entries(appwriteConfig).map(([k, v]) => (

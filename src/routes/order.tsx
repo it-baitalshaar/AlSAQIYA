@@ -185,7 +185,7 @@ function OrderPage() {
             <h3 className="text-xl">Good to know</h3>
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
               <li>• Minimum order for site delivery is one full pallet per shade lot.</li>
-              <li>• Samples can be collected from Mussafah or couriered on request.</li>
+              <li>• Samples can be collected from Musaffah or couriered on request.</li>
               <li>• Payment is arranged directly with our sales team, not online.</li>
               <li>
                 • Not sure which tile? <Link to="/products" className="text-primary underline">Browse the catalogue</Link>{" "}
