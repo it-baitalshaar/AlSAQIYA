@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Mail, MapPin, Phone, Globe } from "lucide-react";
+import { Facebook, Globe, Instagram, Mail, MapPin, Phone } from "lucide-react";
 import { company, companyLogo, telHref } from "@/lib/company";
 
 const catalogue = ["Wall Tiles", "Floor Tiles", "Outdoor Porcelain", "Wood Look", "Sanitary Ware"];
@@ -8,6 +8,7 @@ const companyLinks = [
   { to: "/about", label: "About Al Saqiya" },
   { to: "/order", label: "How to order" },
   { to: "/contact", label: "Showroom & contact" },
+  { to: "/card", label: "Contact card & QR" },
 ] as const;
 
 export function SiteFooter() {
@@ -111,6 +112,28 @@ export function SiteFooter() {
                   className="hover:text-gold"
                 >
                   {company.websiteLabel}
+                </a>
+              </li>
+              <li className="flex gap-3">
+                <Instagram className="mt-0.5 size-4 shrink-0 text-gold" />
+                <a
+                  href={company.instagram}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-gold"
+                >
+                  {company.instagramHandle}
+                </a>
+              </li>
+              <li className="flex gap-3">
+                <Facebook className="mt-0.5 size-4 shrink-0 text-gold" />
+                <a
+                  href={company.facebook}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-gold"
+                >
+                  {company.facebookHandle}
                 </a>
               </li>
             </ul>

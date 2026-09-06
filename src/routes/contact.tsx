@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Clock, Globe, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { Clock, Facebook, Globe, Instagram, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ContactQr } from "@/components/contact-qr";
 import { company, telHref, whatsappLink } from "@/lib/company";
 
 export const Route = createFileRoute("/contact")({
@@ -10,13 +11,13 @@ export const Route = createFileRoute("/contact")({
       {
         name: "description",
         content:
-          "Visit Al Saqiya Trading in Musaffah Industrial, Abu Dhabi. Call +971 50 444 3247 or email accountant@alsaqiauae.ae.",
+          "Visit Al Saqiya Trading in Musaffah Industrial M38, Abu Dhabi. Call +971 50 444 3247 or email accountant@alsaqiauae.ae.",
       },
       { property: "og:title", content: "Contact Al Saqiya Trading" },
       {
         property: "og:description",
         content:
-          "Musaffah - Musaffah Industrial - Abu Dhabi. Find us on Google Maps.",
+          "Musaffah - Musaffah Industrial - M38, Abu Dhabi. Find us on Google Maps, Instagram and Facebook.",
       },
     ],
   }),
@@ -49,6 +50,8 @@ const cards = [
     value: `${company.addressEn}. ${company.landmark}.`,
     href: company.mapsUrl,
   },
+  { icon: Instagram, label: "Instagram", value: company.instagramHandle, href: company.instagram },
+  { icon: Facebook, label: "Facebook", value: company.facebookHandle, href: company.facebook },
   { icon: Clock, label: "Working hours", value: company.hours },
 ];
 
@@ -117,6 +120,21 @@ function Contact() {
           </div>
         </div>
       </div>
+
+      <section className="mt-16 border border-border bg-card p-8 shadow-soft">
+        <div className="grid items-start gap-10 lg:grid-cols-2">
+          <div>
+            <p className="text-eyebrow text-muted-foreground">Share our details</p>
+            <h2 className="rule-gold mt-3 text-3xl">Contact QR</h2>
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">
+              Use the same QR on catalogues, invoices and the showroom. It always opens the live
+              contact card with our phone numbers, email, Google Maps location, Instagram and
+              Facebook.
+            </p>
+          </div>
+          <ContactQr />
+        </div>
+      </section>
     </div>
   );
 }

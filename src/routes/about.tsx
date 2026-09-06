@@ -36,6 +36,8 @@ const facts: Array<[string, string]> = [
   ["Email", company.email],
   ["Mobile", company.phone],
   ["Landline", company.landline],
+  ["Instagram", company.instagramHandle],
+  ["Facebook", company.facebookHandle],
 ];
 
 function About() {
