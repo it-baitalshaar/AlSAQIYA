@@ -46,13 +46,23 @@ const cards = [
   },
   {
     icon: MapPin,
-    label: "Address",
-    value: `${company.addressEn}. ${company.landmark}.`,
+    label: "Main showroom",
+    value: `Al Saqiya Trading — ${company.addressEn}`,
     href: company.mapsUrl,
+  },
+  {
+    icon: MapPin,
+    label: "Branch",
+    value: `Al Saqiya Trading — ${company.branchAddressEn}`,
+    href: company.branchMapsUrl,
   },
   { icon: Instagram, label: "Instagram", value: company.instagramHandle, href: company.instagram },
   { icon: Facebook, label: "Facebook", value: company.facebookHandle, href: company.facebook },
-  { icon: Clock, label: "Working hours", value: company.hours },
+  {
+    icon: Clock,
+    label: "Working hours",
+    value: `${company.hours}. ${company.hoursClosed}.`,
+  },
 ];
 
 function Contact() {
@@ -90,16 +100,6 @@ function Contact() {
         </div>
 
         <div className="flex flex-col gap-6">
-          <div className="overflow-hidden border border-border">
-            <iframe
-              title="Al Saqiya Trading location — Musaffah Industrial, Abu Dhabi"
-              src={company.mapsEmbed}
-              className="h-80 w-full"
-              loading="lazy"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
-          </div>
           <div className="surface-navy p-8">
             <h2 className="text-2xl">Fastest way to reach us</h2>
             <p className="mt-3 text-sm leading-relaxed opacity-85">
@@ -120,6 +120,57 @@ function Contact() {
           </div>
         </div>
       </div>
+
+      <section className="mt-16">
+        <p className="text-eyebrow text-muted-foreground">Find us</p>
+        <h2 className="rule-gold mt-3 text-3xl">Showrooms</h2>
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+          <div className="overflow-hidden border border-border bg-card shadow-soft">
+            <iframe
+              title="Al Saqiya Trading main showroom — Musaffah Industrial M38, Abu Dhabi"
+              src={company.mapsEmbed}
+              className="h-72 w-full"
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+            <a
+              href={company.mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block p-5 transition-colors hover:text-primary"
+            >
+              <p className="text-eyebrow text-[0.6rem] text-muted-foreground">Main showroom</p>
+              <p className="mt-1 text-sm leading-relaxed">
+                Al Saqiya Trading — {company.addressEn}
+              </p>
+              <p className="mt-2 text-xs text-gold">Open in Google Maps</p>
+            </a>
+          </div>
+          <div className="overflow-hidden border border-border bg-card shadow-soft">
+            <iframe
+              title="Al Saqiya Trading branch — Musaffah Industrial, Abu Dhabi"
+              src={company.branchMapsEmbed}
+              className="h-72 w-full"
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+            <a
+              href={company.branchMapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block p-5 transition-colors hover:text-primary"
+            >
+              <p className="text-eyebrow text-[0.6rem] text-muted-foreground">Branch</p>
+              <p className="mt-1 text-sm leading-relaxed">
+                Al Saqiya Trading — {company.branchAddressEn}
+              </p>
+              <p className="mt-2 text-xs text-gold">Open in Google Maps</p>
+            </a>
+          </div>
+        </div>
+      </section>
 
       <section className="mt-16 border border-border bg-card p-8 shadow-soft">
         <div className="grid items-start gap-10 lg:grid-cols-2">

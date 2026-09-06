@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Facebook, Globe, Instagram, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { Clock, Facebook, Globe, Instagram, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { ContactQr } from "@/components/contact-qr";
 import { Button } from "@/components/ui/button";
 import { company, companyLogo, telHref, whatsappLink } from "@/lib/company";
@@ -26,9 +26,20 @@ const details = [
   { icon: Globe, label: "Website", value: company.websiteLabel, href: company.website },
   {
     icon: MapPin,
-    label: "Showroom",
-    value: `${company.addressEn}. ${company.landmark}.`,
+    label: "Main showroom",
+    value: `Al Saqiya Trading — ${company.addressEn}`,
     href: company.mapsUrl,
+  },
+  {
+    icon: MapPin,
+    label: "Branch",
+    value: `Al Saqiya Trading — ${company.branchAddressEn}`,
+    href: company.branchMapsUrl,
+  },
+  {
+    icon: Clock,
+    label: "Working hours",
+    value: `${company.hours}. ${company.hoursClosed}.`,
   },
   { icon: Instagram, label: "Instagram", value: company.instagramHandle, href: company.instagram },
   { icon: Facebook, label: "Facebook", value: company.facebookHandle, href: company.facebook },
@@ -50,14 +61,9 @@ function ContactCard() {
         <p className="mt-6 text-sm leading-relaxed text-muted-foreground">{company.tagline}</p>
 
         <ul className="mt-8 divide-y divide-border">
-          {details.map((item) => (
-            <li key={item.label}>
-              <a
-                href={item.href}
-                target={item.href.startsWith("http") ? "_blank" : undefined}
-                rel="noreferrer"
-                className="flex gap-3 py-3.5 transition-colors hover:text-primary"
-              >
+          {details.map((item) => {
+            const row = (
+              <>
                 <item.icon className="mt-0.5 size-4 shrink-0 text-gold" />
                 <span>
                   <span className="text-eyebrow block text-[0.6rem] text-muted-foreground">
@@ -65,9 +71,25 @@ function ContactCard() {
                   </span>
                   <span className="mt-0.5 block text-sm leading-relaxed">{item.value}</span>
                 </span>
-              </a>
-            </li>
-          ))}
+              </>
+            );
+            return (
+              <li key={item.label}>
+                {"href" in item && item.href ? (
+                  <a
+                    href={item.href}
+                    target={item.href.startsWith("http") ? "_blank" : undefined}
+                    rel="noreferrer"
+                    className="flex gap-3 py-3.5 transition-colors hover:text-primary"
+                  >
+                    {row}
+                  </a>
+                ) : (
+                  <div className="flex gap-3 py-3.5">{row}</div>
+                )}
+              </li>
+            );
+          })}
         </ul>
 
         <Button asChild variant="gold" className="mt-6 w-full">

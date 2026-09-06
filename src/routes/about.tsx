@@ -30,8 +30,9 @@ const facts: Array<[string, string]> = [
   ["Established", "19 September 1991"],
   ["Licensing authority", "Abu Dhabi Registration Authority (ADRA)"],
   ["Chamber membership", "ADCCI 7364"],
-  ["Address", company.addressEn],
-  ["Landmark", company.landmark],
+  ["Main showroom", company.addressEn],
+  ["Branch", company.branchAddressEn],
+  ["Working hours", `${company.hours}. ${company.hoursClosed}`],
   ["Website", company.websiteLabel],
   ["Email", company.email],
   ["Mobile", company.phone],
@@ -51,8 +52,8 @@ function About() {
               Three decades of supplying the surfaces of Abu Dhabi.
             </h1>
             <p className="mt-6 leading-relaxed opacity-85">
-              {company.legalName} was established in 1991 and operates from {company.addressEn},{" "}
-              {company.landmark}. We import and retail ceramic and porcelain tiles, large-format
+              {company.legalName} was established in 1991 and operates from {company.addressEn}.
+              We import and retail ceramic and porcelain tiles, large-format
               slabs, outdoor paving and sanitary ware — supplying contractors, consultants, interior
               fit-out firms and private villa owners across the Emirates.
             </p>

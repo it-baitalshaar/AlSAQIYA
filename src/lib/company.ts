@@ -22,10 +22,20 @@ export const company = {
   instagramHandle: "@alsaqia",
   facebook: "https://www.facebook.com/p/Al-Saqia-Trading-Est-Mussafah-M38-100070240700896/",
   facebookHandle: "Al Saqia Trading Est",
-  mapsUrl: "https://maps.app.goo.gl/wEScgfHK1gHfZcqCA",
+  mapsLat: 24.35766,
+  mapsLng: 54.496312,
+  mapsUrl:
+    "https://www.google.com/maps/place/Al+Saqiya+Trading/@24.35766,54.496312,19z/data=!4m6!3m5!1s0x3e5e40e9346a3a21:0xf02ec1540d01cabd!8m2!3d24.35766!4d54.496312",
   mapsEmbed:
-    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3634.6795657796833!2d54.4962817!3d24.357652299999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e5e40e9346a3a21%3A0xf02ec1540d01cabd!2zQWwgU2FxaXlhIFRyYWRpbmcg2KfZhNiz2KfZgtmK2Kkg2KfZhNiq2KzYp9ix2YrYqQ!5e0!3m2!1sen!2sae!4v1788342862983!5m2!1sen!2sae",
-  hours: "Saturday – Thursday · 8:00 – 18:00",
+    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d227.16734029202135!2d54.496312!3d24.35766!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e5e40e9346a3a21%3A0xf02ec1540d01cabd!2zQWwgU2FxaXlhIFRyYWRpbmcg2KfZhNiz2KfZgtmK2Kkg2KfZhNiq2KzYp9ix2YrYqQ!5e0!3m2!1sen!2sae!4v1788692073719!5m2!1sen!2sae",
+  branchLabel: "Branch",
+  branchAddressEn: "306 Al Mantaqah As Sina'iyah 1 St, Musaffah Industrial - M38, Abu Dhabi",
+  branchMapsUrl:
+    "https://www.google.com/maps/place/Al+Saqiya+Trading+306+Al+Mantaqah+As+Sina'iyah+1+St/@24.354857,54.494925,19z/data=!4m6!3m5!1s0x3e5e41006cc4c70d:0x8cd4264d28bd2d7b!8m2!3d24.354857!4d54.494925",
+  branchMapsEmbed:
+    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d227.1724986440718!2d54.494925!3d24.354857!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e5e41006cc4c70d%3A0x8cd4264d28bd2d7b!2zQWwgU2FxaXlhIFRyYWRpbmcg2KfZhNiz2KfZgtmK2Kkg2KfZhNiq2KzYp9ix2YrYqQ!5e0!3m2!1sen!2sae!4v1788689052183!5m2!1sen!2sae",
+  hours: "Saturday – Thursday · 07:00 – 19:00",
+  hoursClosed: "Friday closed",
   activities: [
     "Retail Sale of Tiles and Grounds",
     "Retail Sale of Sanitary Ware and Fittings",
@@ -67,14 +77,15 @@ export function companyVCard() {
     `TEL;TYPE=WORK,VOICE:${work}`,
     `EMAIL;TYPE=INTERNET,WORK:${company.email}`,
     `URL:${company.website}`,
-    `ADR;TYPE=WORK:;;${company.addressEn}. ${company.landmark};;Abu Dhabi;;United Arab Emirates`,
-    `NOTE:${company.landmark}`,
+    `ADR;TYPE=WORK:;;${company.addressEn};;Abu Dhabi;;United Arab Emirates`,
     `item1.URL:${company.mapsUrl}`,
-    "item1.X-ABLabel:Location",
-    `item2.URL:${company.instagram}`,
-    "item2.X-ABLabel:Instagram",
-    `item3.URL:${company.facebook}`,
-    "item3.X-ABLabel:Facebook",
+    "item1.X-ABLabel:Main showroom",
+    `item2.URL:${company.branchMapsUrl}`,
+    "item2.X-ABLabel:Branch",
+    `item3.URL:${company.instagram}`,
+    "item3.X-ABLabel:Instagram",
+    `item4.URL:${company.facebook}`,
+    "item4.X-ABLabel:Facebook",
     "END:VCARD",
   ].join("\r\n");
 }

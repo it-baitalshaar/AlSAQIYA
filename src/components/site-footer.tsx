@@ -81,8 +81,26 @@ export function SiteFooter() {
                   rel="noreferrer"
                   className="hover:text-gold"
                 >
-                  {company.addressEn}
-                  <span className="mt-1 block text-white/60">{company.landmark}</span>
+                  <span className="block text-[0.65rem] uppercase tracking-wider text-white/50">
+                    Main showroom
+                  </span>
+                  Al Saqiya Trading
+                  <span className="mt-1 block">{company.addressEn}</span>
+                </a>
+              </li>
+              <li className="flex gap-3">
+                <MapPin className="mt-0.5 size-4 shrink-0 text-gold" />
+                <a
+                  href={company.branchMapsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-gold"
+                >
+                  <span className="block text-[0.65rem] uppercase tracking-wider text-white/50">
+                    Branch
+                  </span>
+                  Al Saqiya Trading
+                  <span className="mt-1 block">{company.branchAddressEn}</span>
                 </a>
               </li>
               <li className="flex gap-3">
@@ -147,7 +165,8 @@ export function SiteFooter() {
             © {new Date().getFullYear()} {company.legalName}. All rights reserved.
           </p>
           <p>
-            Economic Licence {company.licenceNo} · Abu Dhabi Registration Authority · {company.hours}
+            Economic Licence {company.licenceNo} · Abu Dhabi Registration Authority · {company.hours} ·{" "}
+            {company.hoursClosed}
           </p>
         </div>
       </div>
