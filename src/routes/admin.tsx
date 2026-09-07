@@ -25,16 +25,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AdminExcel, pushCatalogueToAppwrite, removeCatalogueProduct } from "@/components/admin-excel";
+import { useCategories } from "@/hooks/use-categories";
 import { useProducts } from "@/hooks/use-products";
 import {
-  categories,
+  defaultVisibleFields,
   emptyProduct,
+  isFieldVisible,
+  mergeCategoryLists,
   productToAppwriteData,
   resetProducts,
   saveProducts,
   slugify,
-  type Category,
   type Product,
+  type ProductFieldKey,
 } from "@/lib/products";
 import { appwriteConfig, upsertAppwriteProduct, uploadProductImage } from "@/lib/appwrite";
 
@@ -132,12 +135,55 @@ function AdminLogin() {
 function Admin({ user }: { user: string }) {
   const router = useRouter();
   const { products, refresh, source } = useProducts();
+  const {
+    categories,
+    addCategory,
+    removeCategory,
+    refresh: refreshCategories,
+    source: categorySource,
+  } = useCategories();
   const [draft, setDraft] = useState<Product>(emptyProduct());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
+  const [savingCategory, setSavingCategory] = useState(false);
+
+  const categoryOptions = mergeCategoryLists(categories, products);
 
   const set = <K extends keyof Product>(k: K, v: Product[K]) =>
     setDraft((d) => ({ ...d, [k]: v }));
+
+  const setFieldVisible = (key: ProductFieldKey, visible: boolean) =>
+    setDraft((d) => ({
+      ...d,
+      visibleFields: { ...(d.visibleFields ?? defaultVisibleFields()), [key]: visible },
+    }));
+
+  const visibilityFor = (key: ProductFieldKey) => ({
+    checked: isFieldVisible(draft, key),
+    onChange: (visible: boolean) => setFieldVisible(key, visible),
+  });
+
+  const onAddCategory = async (selectAfter = false) => {
+    const name = newCategory.trim();
+    if (!name) {
+      toast.error("Enter a category name.");
+      return;
+    }
+    setSavingCategory(true);
+    try {
+      const saved = await addCategory(name);
+      setNewCategory("");
+      if (selectAfter) set("category", saved);
+      toast.success(`Category “${saved}” saved to Appwrite.`);
+    } catch (error) {
+      setNewCategory("");
+      if (selectAfter) set("category", name);
+      toast.error(error instanceof Error ? error.message : "Could not save category.");
+    } finally {
+      setSavingCategory(false);
+    }
+  };
 
   const startNew = () => {
     setDraft(emptyProduct());
@@ -145,7 +191,7 @@ function Admin({ user }: { user: string }) {
   };
 
   const startEdit = (p: Product) => {
-    setDraft({ ...p });
+    setDraft({ ...p, visibleFields: p.visibleFields ?? defaultVisibleFields() });
     setEditingId(p.id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -170,7 +216,11 @@ function Admin({ user }: { user: string }) {
       return;
     }
     const id = editingId ?? slugify(draft.name);
-    const next: Product = { ...draft, id };
+    const next: Product = {
+      ...draft,
+      id,
+      visibleFields: draft.visibleFields ?? defaultVisibleFields(),
+    };
     const list = editingId
       ? products.map((p) => (p.id === editingId ? next : p))
       : [next, ...products.filter((p) => p.id !== id)];
@@ -294,6 +344,7 @@ function Admin({ user }: { user: string }) {
       <Tabs defaultValue="products" className="mt-10">
         <TabsList>
           <TabsTrigger value="products">Products ({products.length})</TabsTrigger>
+          <TabsTrigger value="categories">Categories ({categoryOptions.length})</TabsTrigger>
           <TabsTrigger value="excel">Excel</TabsTrigger>
           <TabsTrigger value="stock">Stock & featured</TabsTrigger>
           <TabsTrigger value="backend">Appwrite</TabsTrigger>
@@ -303,64 +354,90 @@ function Admin({ user }: { user: string }) {
           <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr]">
             <div className="border border-border bg-card p-8 shadow-soft">
               <h2 className="text-2xl">{editingId ? "Edit product" : "Add product"}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Use <span className="font-medium text-foreground">Show</span> on each field to hide
+                it on the website for this product only.
+              </p>
 
               <div className="mt-6 grid gap-5 sm:grid-cols-2">
                 <Field label="Name">
                   <Input value={draft.name} onChange={(e) => set("name", e.target.value)} />
                 </Field>
-                <Field label="Collection">
+                <Field label="Collection" visibility={visibilityFor("collection")}>
                   <Input
                     value={draft.collection}
                     onChange={(e) => set("collection", e.target.value)}
                   />
                 </Field>
-                <Field label="Category">
+                <Field label="Category" visibility={visibilityFor("category")} className="sm:col-span-2">
                   <Select
                     value={draft.category}
-                    onValueChange={(v) => set("category", v as Category)}
+                    onValueChange={(v) => set("category", v)}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((c) => (
+                      {categoryOptions.map((c) => (
                         <SelectItem key={c} value={c}>
                           {c}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      placeholder="Add a new category"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void onAddCategory(true);
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="quiet"
+                      disabled={savingCategory}
+                      onClick={() => void onAddCategory(true)}
+                    >
+                      <Plus className="size-4" />
+                      {savingCategory ? "Saving…" : "Add category"}
+                    </Button>
+                  </div>
                 </Field>
-                <Field label="Size">
+                <Field label="Size" visibility={visibilityFor("size")}>
                   <Input value={draft.size} onChange={(e) => set("size", e.target.value)} />
                 </Field>
-                <Field label="Finish">
+                <Field label="Finish" visibility={visibilityFor("finish")}>
                   <Input value={draft.finish} onChange={(e) => set("finish", e.target.value)} />
                 </Field>
-                <Field label="Thickness">
+                <Field label="Thickness" visibility={visibilityFor("thickness")}>
                   <Input
                     value={draft.thickness}
                     onChange={(e) => set("thickness", e.target.value)}
                   />
                 </Field>
-                <Field label="Origin">
+                <Field label="Origin" visibility={visibilityFor("origin")}>
                   <Input value={draft.origin} onChange={(e) => set("origin", e.target.value)} />
                 </Field>
-                <Field label="Price">
+                <Field label="Price" visibility={visibilityFor("price")}>
                   <Input
                     value={draft.price}
                     onChange={(e) => set("price", e.target.value)}
                     placeholder="AED 68 / m²"
                   />
                 </Field>
-                <Field label="Application" className="sm:col-span-2">
+                <Field label="Application" className="sm:col-span-2" visibility={visibilityFor("application")}>
                   <Input
                     value={draft.application}
                     onChange={(e) => set("application", e.target.value)}
                     placeholder="Bathroom & living wall cladding"
                   />
                 </Field>
-                <Field label="Description" className="sm:col-span-2">
+                <Field label="Description" className="sm:col-span-2" visibility={visibilityFor("description")}>
                   <Textarea
                     rows={4}
                     value={draft.description}
@@ -368,7 +445,7 @@ function Admin({ user }: { user: string }) {
                   />
                 </Field>
 
-                <Field label="Image" className="sm:col-span-2">
+                <Field label="Image" className="sm:col-span-2" visibility={visibilityFor("image")}>
                   <div className="flex flex-wrap items-center gap-4">
                     <label className="inline-flex cursor-pointer items-center gap-2 border border-border px-4 py-2 text-xs uppercase tracking-widest hover:border-primary/40">
                       <Upload className="size-4" />
@@ -399,13 +476,22 @@ function Admin({ user }: { user: string }) {
                   />
                 </Field>
 
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={draft.inStock}
-                    onCheckedChange={(v) => set("inStock", v)}
-                    id="inStock"
-                  />
-                  <Label htmlFor="inStock">In stock</Label>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      checked={draft.inStock}
+                      onCheckedChange={(v) => set("inStock", v)}
+                      id="inStock"
+                    />
+                    <Label htmlFor="inStock">In stock</Label>
+                  </div>
+                  <label className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    <Switch
+                      checked={isFieldVisible(draft, "inStock")}
+                      onCheckedChange={(v) => setFieldVisible("inStock", v)}
+                    />
+                    Show
+                  </label>
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch
@@ -476,6 +562,83 @@ function Admin({ user }: { user: string }) {
           </div>
         </TabsContent>
 
+        <TabsContent value="categories" className="mt-8">
+          <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr]">
+            <div className="border border-border bg-card p-8 shadow-soft">
+              <h2 className="text-2xl">Add category</h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                New categories are stored in Appwrite
+                {categorySource === "appwrite" ? " and appear on the catalogue filters." : " when the connection is available."}
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <Input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="e.g. Mosaics"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void onAddCategory();
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="brand"
+                  disabled={savingCategory}
+                  onClick={() => void onAddCategory()}
+                >
+                  <Plus className="size-4" />
+                  {savingCategory ? "Saving…" : "Save category"}
+                </Button>
+              </div>
+            </div>
+            <div className="border border-border bg-card shadow-soft">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Products</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {categoryOptions.map((name) => {
+                    const count = products.filter((p) => p.category === name).length;
+                    return (
+                      <TableRow key={name}>
+                        <TableCell className="text-sm font-medium">{name}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{count}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            disabled={count > 0}
+                            title={count > 0 ? "Move products out of this category first" : "Delete category"}
+                            onClick={async () => {
+                              try {
+                                await removeCategory(name);
+                                toast.success(`Removed “${name}”.`);
+                                await refreshCategories();
+                              } catch (error) {
+                                toast.error(
+                                  error instanceof Error ? error.message : "Could not delete category.",
+                                );
+                              }
+                            }}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
         <TabsContent value="excel" className="mt-8">
           <AdminExcel products={products} onDone={() => void refresh()} />
         </TabsContent>
@@ -534,15 +697,25 @@ function Field({
   label,
   className,
   children,
+  visibility,
 }: {
   label: string;
   className?: string;
   children: React.ReactNode;
+  visibility?: { checked: boolean; onChange: (visible: boolean) => void };
 }) {
   return (
     <div className={`grid gap-2 ${className ?? ""}`}>
-      <Label>{label}</Label>
-      {children}
+      <div className="flex items-center justify-between gap-3">
+        <Label>{label}</Label>
+        {visibility ? (
+          <label className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <Switch checked={visibility.checked} onCheckedChange={visibility.onChange} />
+            Show
+          </label>
+        ) : null}
+      </div>
+      <div className={visibility && !visibility.checked ? "opacity-50" : undefined}>{children}</div>
     </div>
   );
 }

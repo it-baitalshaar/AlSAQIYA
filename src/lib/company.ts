@@ -36,6 +36,8 @@ export const company = {
     "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d227.1724986440718!2d54.494925!3d24.354857!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e5e41006cc4c70d%3A0x8cd4264d28bd2d7b!2zQWwgU2FxaXlhIFRyYWRpbmcg2KfZhNiz2KfZgtmK2Kkg2KfZhNiq2KzYp9ix2YrYqQ!5e0!3m2!1sen!2sae!4v1788689052183!5m2!1sen!2sae",
   hours: "Saturday – Thursday · 07:00 – 19:00",
   hoursClosed: "Friday closed",
+  branchHours: "Saturday – Thursday · 07:30 – 13:00 & 15:30 – 19:00",
+  branchHoursClosed: "Friday closed",
   activities: [
     "Retail Sale of Tiles and Grounds",
     "Retail Sale of Sanitary Ware and Fittings",

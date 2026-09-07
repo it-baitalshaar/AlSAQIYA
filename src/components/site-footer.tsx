@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { Facebook, Globe, Instagram, Mail, MapPin, Phone } from "lucide-react";
 import { company, companyLogo, telHref } from "@/lib/company";
-
-const catalogue = ["Wall Tiles", "Floor Tiles", "Outdoor Porcelain", "Wood Look", "Sanitary Ware"];
+import { useCategories } from "@/hooks/use-categories";
+import { useProducts } from "@/hooks/use-products";
+import { mergeCategoryLists } from "@/lib/products";
 
 const companyLinks = [
   { to: "/about", label: "About Al Saqiya" },
@@ -12,6 +13,10 @@ const companyLinks = [
 ] as const;
 
 export function SiteFooter() {
+  const { categories } = useCategories();
+  const { products } = useProducts();
+  const catalogue = mergeCategoryLists(categories, products);
+
   return (
     <footer className="surface-navy mt-24">
       <div className="mx-auto max-w-7xl px-6 pt-16 pb-12">

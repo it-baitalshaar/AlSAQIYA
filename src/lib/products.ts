@@ -1,6 +1,72 @@
 import { catalogImages, localizeImageUrl } from "@/lib/catalog-images";
 import type { AppwriteProductRow } from "@/lib/appwrite";
 
+export type ProductFieldKey =
+  | "collection"
+  | "category"
+  | "size"
+  | "finish"
+  | "thickness"
+  | "origin"
+  | "application"
+  | "price"
+  | "description"
+  | "image"
+  | "inStock";
+
+export type VisibleFields = Record<ProductFieldKey, boolean>;
+
+export const productFieldMeta: { key: ProductFieldKey; label: string }[] = [
+  { key: "collection", label: "Collection" },
+  { key: "category", label: "Category" },
+  { key: "size", label: "Size" },
+  { key: "finish", label: "Finish" },
+  { key: "thickness", label: "Thickness" },
+  { key: "origin", label: "Origin" },
+  { key: "application", label: "Application" },
+  { key: "price", label: "Price" },
+  { key: "description", label: "Description" },
+  { key: "image", label: "Image" },
+  { key: "inStock", label: "Stock status" },
+];
+
+export function defaultVisibleFields(): VisibleFields {
+  return {
+    collection: true,
+    category: true,
+    size: true,
+    finish: true,
+    thickness: true,
+    origin: true,
+    application: true,
+    price: true,
+    description: true,
+    image: true,
+    inStock: true,
+  };
+}
+
+export function parseVisibleFields(value: unknown): VisibleFields {
+  const defaults = defaultVisibleFields();
+  if (!value) return defaults;
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    if (!parsed || typeof parsed !== "object") return defaults;
+    const raw = parsed as Record<string, unknown>;
+    const next = { ...defaults };
+    for (const field of productFieldMeta) {
+      if (raw[field.key] === false) next[field.key] = false;
+    }
+    return next;
+  } catch {
+    return defaults;
+  }
+}
+
+export function isFieldVisible(product: Product, key: ProductFieldKey) {
+  return (product.visibleFields ?? defaultVisibleFields())[key] !== false;
+}
+
 export type Product = {
   id: string;
   name: string;
@@ -17,9 +83,10 @@ export type Product = {
   description: string;
   image: string;
   gallery?: string[];
+  visibleFields?: VisibleFields;
 };
 
-export const categories = [
+export const defaultCategories = [
   "Wall Tiles",
   "Floor Tiles",
   "Outdoor Porcelain",
@@ -27,7 +94,9 @@ export const categories = [
   "Sanitary Ware",
 ] as const;
 
-export type Category = (typeof categories)[number];
+export const categories = defaultCategories;
+
+export type Category = string;
 
 export const seedProducts: Product[] = [
   {
@@ -191,7 +260,8 @@ export function listProducts(): Product[] {
     const parsed = (JSON.parse(raw) as Product[]).map((product) => ({
       ...product,
       image: localizeImageUrl(product.image),
-      gallery: product.gallery?.map(localizeImageUrl),
+      ...(product.gallery ? { gallery: product.gallery.map(localizeImageUrl) } : {}),
+      visibleFields: parseVisibleFields(product.visibleFields),
     }));
     return Array.isArray(parsed) && parsed.length ? parsed : seedProducts;
   } catch {
@@ -236,14 +306,65 @@ export function emptyProduct(): Product {
     featured: false,
     description: "",
     image: "",
+    visibleFields: defaultVisibleFields(),
   };
 }
 
+const CATEGORIES_STORAGE_KEY = "al-saqiya:categories:v1";
+
+export function listLocalCategories(): string[] {
+  if (!isBrowser()) return [...defaultCategories];
+  try {
+    const raw = window.localStorage.getItem(CATEGORIES_STORAGE_KEY);
+    if (!raw) return [...defaultCategories];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [...defaultCategories];
+    const names = parsed
+      .map((item) => String(item ?? "").trim())
+      .filter(Boolean);
+    return names.length ? uniqueNames(names) : [...defaultCategories];
+  } catch {
+    return [...defaultCategories];
+  }
+}
+
+export function saveLocalCategories(names: string[]) {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(uniqueNames(names)));
+}
+
+export function uniqueNames(names: string[]) {
+  const seen = new Set<string>();
+  const next: string[] = [];
+  for (const name of names) {
+    const trimmed = name.trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) continue;
+    seen.add(key);
+    next.push(trimmed);
+  }
+  return next;
+}
+
+export function mergeCategoryLists(stored: string[], products: Product[]) {
+  return uniqueNames([...stored, ...products.map((product) => product.category)]);
+}
+
+let allowedProductCategories: string[] = [...defaultCategories];
+
+export function setAllowedProductCategories(names: string[]) {
+  allowedProductCategories = uniqueNames([...defaultCategories, ...names]);
+}
+
 export function productToAppwriteData(product: Product) {
+  const category = allowedProductCategories.includes(product.category)
+    ? product.category
+    : "Floor Tiles";
   return {
     name: product.name,
     collection: product.collection,
-    category: product.category,
+    category,
+    categoryLabel: product.category,
     size: product.size,
     finish: product.finish,
     thickness: product.thickness,
@@ -255,6 +376,7 @@ export function productToAppwriteData(product: Product) {
     description: product.description,
     image: product.image.startsWith("data:") ? "" : product.image,
     gallery: (product.gallery ?? []).filter((url) => !url.startsWith("data:")),
+    visibleFields: JSON.stringify(product.visibleFields ?? defaultVisibleFields()),
   };
 }
 
@@ -263,9 +385,7 @@ export function productFromAppwrite(row: AppwriteProductRow): Product {
     id: row.$id,
     name: row.name,
     collection: row.collection ?? "",
-    category: (categories as readonly string[]).includes(row.category)
-      ? (row.category as Category)
-      : "Floor Tiles",
+    category: (row.categoryLabel || row.category || "Floor Tiles").trim(),
     size: row.size ?? "",
     finish: row.finish ?? "",
     thickness: row.thickness ?? "",
@@ -276,7 +396,8 @@ export function productFromAppwrite(row: AppwriteProductRow): Product {
     featured: row.featured ?? false,
     description: row.description ?? "",
     image: localizeImageUrl(row.image ?? ""),
-    gallery: row.gallery?.map(localizeImageUrl),
+    ...(row.gallery ? { gallery: row.gallery.map(localizeImageUrl) } : {}),
+    visibleFields: parseVisibleFields(row.visibleFields),
   };
 }
 
@@ -284,10 +405,12 @@ export function mergeImportedProducts(current: Product[], incoming: Product[]) {
   const byId = new Map(current.map((p) => [p.id, p]));
   for (const item of incoming) {
     const existing = byId.get(item.id);
+    const gallery = item.gallery?.length ? item.gallery : existing?.gallery;
     byId.set(item.id, {
       ...item,
       image: item.image || existing?.image || "",
-      gallery: item.gallery?.length ? item.gallery : existing?.gallery,
+      ...(gallery ? { gallery } : {}),
+      visibleFields: item.visibleFields ?? existing?.visibleFields ?? defaultVisibleFields(),
     });
   }
   return [...byId.values()];

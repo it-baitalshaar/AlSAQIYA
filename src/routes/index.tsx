@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Building2, Package, ShieldCheck, Truck } from "lucide-react";
+import { useMemo } from "react";
+import { useCategories } from "@/hooks/use-categories";
 import { useProducts } from "@/hooks/use-products";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import { company, whatsappLink } from "@/lib/company";
-import { categories } from "@/lib/products";
+import { mergeCategoryLists } from "@/lib/products";
 import { catalogImages } from "@/lib/catalog-images";
 
 export const Route = createFileRoute("/")({
@@ -52,7 +54,12 @@ const pillars = [
 
 function Home() {
   const { products } = useProducts();
+  const { categories } = useCategories();
   const featured = products.filter((p) => p.featured).slice(0, 6);
+  const rangeCategories = useMemo(
+    () => mergeCategoryLists(categories, products),
+    [categories, products],
+  );
 
   return (
     <>
@@ -124,8 +131,8 @@ function Home() {
             All products →
           </Link>
         </div>
-        <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {categories.map((c) => (
+        <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {rangeCategories.map((c) => (
             <Link
               key={c}
               to="/products"

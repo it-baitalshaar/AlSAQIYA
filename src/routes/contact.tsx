@@ -60,8 +60,13 @@ const cards = [
   { icon: Facebook, label: "Facebook", value: company.facebookHandle, href: company.facebook },
   {
     icon: Clock,
-    label: "Working hours",
+    label: "Main showroom hours",
     value: `${company.hours}. ${company.hoursClosed}.`,
+  },
+  {
+    icon: Clock,
+    label: "Branch hours",
+    value: `${company.branchHours}. ${company.branchHoursClosed}.`,
   },
 ];
 
@@ -144,6 +149,9 @@ function Contact() {
               <p className="mt-1 text-sm leading-relaxed">
                 Al Saqiya Trading — {company.addressEn}
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {company.hours}. {company.hoursClosed}.
+              </p>
               <p className="mt-2 text-xs text-gold">Open in Google Maps</p>
             </a>
           </div>
@@ -165,6 +173,9 @@ function Contact() {
               <p className="text-eyebrow text-[0.6rem] text-muted-foreground">Branch</p>
               <p className="mt-1 text-sm leading-relaxed">
                 Al Saqiya Trading — {company.branchAddressEn}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {company.branchHours}. {company.branchHoursClosed}.
               </p>
               <p className="mt-2 text-xs text-gold">Open in Google Maps</p>
             </a>

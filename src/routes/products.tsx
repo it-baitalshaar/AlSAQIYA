@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { z } from "zod";
+import { useCategories } from "@/hooks/use-categories";
 import { useProducts } from "@/hooks/use-products";
 import { ProductCard } from "@/components/product-card";
 import { Input } from "@/components/ui/input";
-import { categories } from "@/lib/products";
+import { mergeCategoryLists } from "@/lib/products";
 
 const searchSchema = z.object({
   category: z.string().optional(),
@@ -33,7 +34,12 @@ export const Route = createFileRoute("/products")({
 function Products() {
   const { category } = Route.useSearch();
   const { products } = useProducts();
+  const { categories } = useCategories();
   const [query, setQuery] = useState("");
+  const categoryFilters = useMemo(
+    () => mergeCategoryLists(categories, products),
+    [categories, products],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -71,7 +77,7 @@ function Products() {
           >
             All
           </Link>
-          {categories.map((c) => (
+          {categoryFilters.map((c) => (
             <Link
               key={c}
               to="/products"

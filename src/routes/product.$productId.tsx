@@ -5,7 +5,7 @@ import { useProducts } from "@/hooks/use-products";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import { company, whatsappLink } from "@/lib/company";
-import { seedProducts } from "@/lib/products";
+import { isFieldVisible, seedProducts } from "@/lib/products";
 
 export const Route = createFileRoute("/product/$productId")({
   loader: ({ params }) => {
@@ -72,30 +72,41 @@ function ProductDetail() {
     );
   }
 
-  const images = product.gallery?.length ? product.gallery : [product.image];
   const related = products
     .filter((p) => p.id !== product.id && p.category === product.category)
     .slice(0, 4);
 
-  const specs: Array<[string, string]> = [
-    ["Collection", product.collection || "—"],
-    ["Category", product.category],
-    ["Size", product.size],
-    ["Finish", product.finish],
-    ["Thickness", product.thickness],
-    ["Origin", product.origin],
-    ["Application", product.application || "—"],
+  const specCandidates: Array<[string, string, Parameters<typeof isFieldVisible>[1]]> = [
+    ["Collection", product.collection || "—", "collection"],
+    ["Category", product.category, "category"],
+    ["Size", product.size, "size"],
+    ["Finish", product.finish, "finish"],
+    ["Thickness", product.thickness, "thickness"],
+    ["Origin", product.origin, "origin"],
+    ["Application", product.application || "—", "application"],
   ];
+  const specs = specCandidates.filter(([, , key]) => isFieldVisible(product, key));
+  const images = (
+    isFieldVisible(product, "image")
+      ? product.gallery?.length
+        ? product.gallery
+        : [product.image]
+      : []
+  ).filter(Boolean);
 
-  const orderMessage = `Hello Al Saqiya Trading,
-I would like to order:
-
-Product: ${product.name}
-Size: ${product.size}
-Finish: ${product.finish}
-Quantity (m²): 
-
-Delivery location: `;
+  const orderMessage = [
+    "Hello Al Saqiya Trading,",
+    "I would like to order:",
+    "",
+    `Product: ${product.name}`,
+    isFieldVisible(product, "size") && product.size ? `Size: ${product.size}` : "",
+    isFieldVisible(product, "finish") && product.finish ? `Finish: ${product.finish}` : "",
+    "Quantity (m²): ",
+    "",
+    "Delivery location: ",
+  ]
+    .filter((line, index, lines) => line !== "" || lines[index - 1] !== "")
+    .join("\n");
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-10">
@@ -140,32 +151,42 @@ Delivery location: `;
         </div>
 
         <div>
-          <p className="text-eyebrow text-muted-foreground">{product.collection}</p>
+          {isFieldVisible(product, "collection") && product.collection ? (
+            <p className="text-eyebrow text-muted-foreground">{product.collection}</p>
+          ) : null}
           <h1 className="mt-3 text-4xl">{product.name}</h1>
-          <p className="mt-4 text-lg text-primary">{product.price || "Price on request"}</p>
+          {isFieldVisible(product, "price") ? (
+            <p className="mt-4 text-lg text-primary">{product.price || "Price on request"}</p>
+          ) : null}
 
-          <p className="mt-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
-            {product.inStock ? (
-              <>
-                <Check className="size-4 text-gold" /> In stock — Mussafah warehouse
-              </>
-            ) : (
-              <>
-                <X className="size-4" /> Available on indent order
-              </>
-            )}
-          </p>
+          {isFieldVisible(product, "inStock") ? (
+            <p className="mt-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
+              {product.inStock ? (
+                <>
+                  <Check className="size-4 text-gold" /> In stock — Mussafah warehouse
+                </>
+              ) : (
+                <>
+                  <X className="size-4" /> Available on indent order
+                </>
+              )}
+            </p>
+          ) : null}
 
-          <p className="mt-6 leading-relaxed text-muted-foreground">{product.description}</p>
+          {isFieldVisible(product, "description") && product.description ? (
+            <p className="mt-6 leading-relaxed text-muted-foreground">{product.description}</p>
+          ) : null}
 
-          <dl className="mt-8 divide-y divide-border border-y border-border">
-            {specs.map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-6 py-3 text-sm">
-                <dt className="text-muted-foreground">{k}</dt>
-                <dd className="text-right font-medium">{v}</dd>
-              </div>
-            ))}
-          </dl>
+          {specs.length ? (
+            <dl className="mt-8 divide-y divide-border border-y border-border">
+              {specs.map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-6 py-3 text-sm">
+                  <dt className="text-muted-foreground">{k}</dt>
+                  <dd className="text-right font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
 
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild variant="brand" size="lg">

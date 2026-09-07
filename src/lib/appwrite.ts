@@ -17,19 +17,29 @@ export const appwriteConfig = {
   databaseId: import.meta.env["VITE_APPWRITE_DATABASE_ID"] ?? "catalogue",
   productsCollectionId:
     import.meta.env["VITE_APPWRITE_PRODUCTS_COLLECTION_ID"] ?? "products",
+  categoriesCollectionId:
+    import.meta.env["VITE_APPWRITE_CATEGORIES_COLLECTION_ID"] ?? "categories",
   storageBucketId: import.meta.env["VITE_APPWRITE_BUCKET_ID"] ?? "product-images",
 } as const;
 
-const { endpoint, projectId, databaseId, productsCollectionId, storageBucketId } =
-  appwriteConfig;
+const {
+  endpoint,
+  projectId,
+  databaseId,
+  productsCollectionId,
+  categoriesCollectionId,
+  storageBucketId,
+} = appwriteConfig;
 
 const documentsPath = `/databases/${databaseId}/collections/${productsCollectionId}/documents`;
+const categoriesPath = `/databases/${databaseId}/collections/${categoriesCollectionId}/documents`;
 
 export type AppwriteProductRow = {
   $id: string;
   name: string;
   collection?: string;
   category: string;
+  categoryLabel?: string;
   size?: string;
   finish?: string;
   thickness?: string;
@@ -41,7 +51,22 @@ export type AppwriteProductRow = {
   description?: string;
   image?: string;
   gallery?: string[];
+  visibleFields?: string;
 };
+
+export type AppwriteCategoryRow = {
+  $id: string;
+  name: string;
+  sort?: number;
+};
+
+const defaultCategorySeed = [
+  { id: "wall-tiles", name: "Wall Tiles", sort: 1 },
+  { id: "floor-tiles", name: "Floor Tiles", sort: 2 },
+  { id: "outdoor-porcelain", name: "Outdoor Porcelain", sort: 3 },
+  { id: "wood-look", name: "Wood Look", sort: 4 },
+  { id: "sanitary-ware", name: "Sanitary Ware", sort: 5 },
+] as const;
 
 export function fileViewUrl(fileId: string) {
   return `${endpoint}/storage/buckets/${storageBucketId}/files/${fileId}/view?project=${projectId}`;
@@ -130,26 +155,61 @@ const listProductsFn = createServerFn({ method: "POST" }).handler(async () => {
   );
 });
 
+const knownEnumCategories = [
+  "Wall Tiles",
+  "Floor Tiles",
+  "Outdoor Porcelain",
+  "Wood Look",
+  "Sanitary Ware",
+];
+
+async function writeProduct(id: string, data: Record<string, unknown>) {
+  const create = await appwriteJson(documentsPath, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId: id, data }),
+  });
+  if (create.ok) return { row: savedRow(create.body), error: null };
+  const patch = await appwriteJson(`${documentsPath}/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data }),
+  });
+  if (patch.ok) return { row: savedRow(patch.body), error: null };
+  return {
+    row: null,
+    error: errorMessage(
+      patch.body,
+      patch.res.status,
+      errorMessage(create.body, create.res.status, "Appwrite save failed"),
+    ),
+  };
+}
+
 const upsertProductFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; data: Record<string, unknown> }) => input)
   .handler(async ({ data: { id, data } }) => {
-    const create = await appwriteJson(documentsPath, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: id, data }),
-    });
-    if (create.ok) return savedRow(create.body);
+    const first = await writeProduct(id, data);
+    if (first.row) return first.row;
 
-    const patch = await appwriteJson(`${documentsPath}/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data }),
+    const { categoryLabel, visibleFields, ...legacy } = data;
+    const requestedCategory = data["category"];
+    const safeCategory =
+      typeof requestedCategory === "string" && knownEnumCategories.includes(requestedCategory)
+        ? requestedCategory
+        : "Floor Tiles";
+    const second = await writeProduct(id, {
+      ...legacy,
+      category: safeCategory,
+      ...(typeof categoryLabel === "string" ? { categoryLabel } : {}),
+      ...(typeof visibleFields === "string" ? { visibleFields } : {}),
     });
-    if (patch.ok) return savedRow(patch.body);
+    if (second.row) return second.row;
 
-    throw new Error(
-      errorMessage(patch.body, patch.res.status, errorMessage(create.body, create.res.status, "Appwrite save failed")),
-    );
+    const third = await writeProduct(id, { ...legacy, category: safeCategory });
+    if (third.row) return third.row;
+
+    throw new Error(first.error ?? "Appwrite save failed");
   });
 
 const deleteProductFn = createServerFn({ method: "POST" })
@@ -184,6 +244,94 @@ const uploadImageFn = createServerFn({ method: "POST" })
     return fileViewUrl(String(res.body.$id ?? fileId));
   });
 
+function flattenCategory(row: Record<string, unknown>): AppwriteCategoryRow {
+  const nested =
+    row["data"] && typeof row["data"] === "object" && !Array.isArray(row["data"])
+      ? (row["data"] as Record<string, unknown>)
+      : {};
+  const { data: _data, ...rest } = row;
+  const merged = { ...rest, ...nested };
+  return {
+    $id: String(merged["$id"] ?? ""),
+    name: String(merged["name"] ?? ""),
+    sort: typeof merged["sort"] === "number" ? merged["sort"] : Number(merged["sort"] ?? 0),
+  };
+}
+
+function categoryRowsFrom(body: Record<string, unknown>) {
+  const list = (body["rows"] ?? body["documents"] ?? []) as Record<string, unknown>[];
+  return Array.isArray(list) ? list.map(flattenCategory).filter((row) => row.$id && row.name) : [];
+}
+
+async function listCategoryDocuments() {
+  const query = encodeURIComponent(JSON.stringify({ method: "limit", values: [200] }));
+  const docs = await appwriteJson(`${categoriesPath}?queries[]=${query}`);
+  if (!docs.ok) {
+    throw new Error(errorMessage(docs.body, docs.res.status, "Could not load categories"));
+  }
+  return categoryRowsFrom(docs.body).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0) || a.name.localeCompare(b.name));
+}
+
+async function createCategoryDocument(id: string, name: string, sort: number) {
+  return appwriteJson(categoriesPath, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId: id, data: { name, sort } }),
+  });
+}
+
+async function syncProductCategoryEnum(names: string[]) {
+  const elements = [...new Set(["Wall Tiles", "Floor Tiles", "Outdoor Porcelain", "Wood Look", "Sanitary Ware", ...names])];
+  const update = await appwriteJson(
+    `/databases/${databaseId}/collections/${productsCollectionId}/attributes/enum/category`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ elements, required: true, default: null }),
+    },
+  );
+  if (update.ok) return;
+  await appwriteJson(
+    `/databases/${databaseId}/collections/${productsCollectionId}/attributes/enum/category`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ elements, required: true, default: "Floor Tiles" }),
+    },
+  );
+}
+
+const listCategoriesFn = createServerFn({ method: "POST" }).handler(async () => {
+  let rows = await listCategoryDocuments();
+  if (!rows.length) {
+    for (const seed of defaultCategorySeed) {
+      await createCategoryDocument(seed.id, seed.name, seed.sort);
+    }
+    rows = await listCategoryDocuments();
+  }
+  return rows;
+});
+
+const createCategoryFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; name: string; sort: number }) => input)
+  .handler(async ({ data: { id, name, sort } }) => {
+    const create = await createCategoryDocument(id, name, sort);
+    if (!create.ok) {
+      throw new Error(errorMessage(create.body, create.res.status, "Could not add category"));
+    }
+    const rows = await listCategoryDocuments();
+    await syncProductCategoryEnum(rows.map((row) => row.name));
+    return flattenCategory(create.body);
+  });
+
+const deleteCategoryFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string }) => input)
+  .handler(async ({ data: { id } }) => {
+    const doc = await appwriteJson(`${categoriesPath}/${id}`, { method: "DELETE" });
+    if (doc.ok || doc.res.status === 204 || doc.res.status === 404) return { ok: true };
+    throw new Error(errorMessage(doc.body, doc.res.status, "Could not delete category"));
+  });
+
 export async function listAppwriteProducts(): Promise<AppwriteProductRow[]> {
   return listProductsFn();
 }
@@ -194,6 +342,18 @@ export async function upsertAppwriteProduct(id: string, data: Record<string, unk
 
 export async function deleteAppwriteProduct(id: string) {
   return deleteProductFn({ data: { id } });
+}
+
+export async function listAppwriteCategories(): Promise<AppwriteCategoryRow[]> {
+  return listCategoriesFn();
+}
+
+export async function createAppwriteCategory(id: string, name: string, sort: number) {
+  return createCategoryFn({ data: { id, name, sort } });
+}
+
+export async function deleteAppwriteCategory(id: string) {
+  return deleteCategoryFn({ data: { id } });
 }
 
 export async function uploadProductImage(file: File): Promise<string> {

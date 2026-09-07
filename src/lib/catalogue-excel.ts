@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { categories, slugify, type Category, type Product } from "@/lib/products";
+import { defaultVisibleFields, slugify, type Product } from "@/lib/products";
 
 export const excelHeaders = [
   "id",
@@ -19,12 +19,6 @@ export const excelHeaders = [
 ] as const;
 
 type ExcelRow = Record<(typeof excelHeaders)[number], string>;
-
-function asCategory(value: string): Category {
-  return (categories as readonly string[]).includes(value)
-    ? (value as Category)
-    : "Floor Tiles";
-}
 
 function asBool(value: unknown, fallback = false) {
   const v = String(value ?? "").trim().toLowerCase();
@@ -60,7 +54,7 @@ export function excelRowToProduct(row: Record<string, unknown>): Product | null 
     id,
     name,
     collection: String(row["collection"] ?? "").trim(),
-    category: asCategory(String(row["category"] ?? "").trim()),
+    category: String(row["category"] ?? "Floor Tiles").trim() || "Floor Tiles",
     size: String(row["size"] ?? "60×120 cm").trim() || "60×120 cm",
     finish: String(row["finish"] ?? "Matt").trim() || "Matt",
     thickness: String(row["thickness"] ?? "9 mm").trim() || "9 mm",
@@ -71,6 +65,7 @@ export function excelRowToProduct(row: Record<string, unknown>): Product | null 
     featured: asBool(row["featured"], false),
     description: String(row["description"] ?? "").trim(),
     image: String(row["image"] ?? "").trim(),
+    visibleFields: defaultVisibleFields(),
   };
 }
 
@@ -81,7 +76,7 @@ function instructionSheet() {
     ["How to use"],
     ["1. Keep the header row on the Catalogue sheet."],
     ["2. Add one product per row. Name is required."],
-    ["3. category must be one of: Wall Tiles, Floor Tiles, Outdoor Porcelain, Wood Look, Sanitary Ware"],
+    ["3. category: use an existing catalogue category, or add a new one in Admin first"],
     ["4. price example: AED 68 / m²"],
     ["5. inStock and featured: yes or no"],
     ["6. image: paste a photo URL, or leave blank and upload the photo in Admin after import"],

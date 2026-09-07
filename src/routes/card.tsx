@@ -38,8 +38,13 @@ const details = [
   },
   {
     icon: Clock,
-    label: "Working hours",
+    label: "Main showroom hours",
     value: `${company.hours}. ${company.hoursClosed}.`,
+  },
+  {
+    icon: Clock,
+    label: "Branch hours",
+    value: `${company.branchHours}. ${company.branchHoursClosed}.`,
   },
   { icon: Instagram, label: "Instagram", value: company.instagramHandle, href: company.instagram },
   { icon: Facebook, label: "Facebook", value: company.facebookHandle, href: company.facebook },

@@ -80,7 +80,7 @@ export function AdminExcel({
         <ol className="mt-6 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
           <li>Download the sample Excel file</li>
           <li>Add or edit rows — do not rename the column headers</li>
-          <li>Category must be Wall Tiles, Floor Tiles, Outdoor Porcelain, Wood Look or Sanitary Ware</li>
+          <li>Category can be any name from Admin → Categories (add new ones there first)</li>
           <li>Price like <code>AED 68 / m²</code> · inStock/featured: yes or no</li>
           <li>Import the saved file to update the catalogue</li>
         </ol>
